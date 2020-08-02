@@ -1,9 +1,11 @@
 package com.example.simpletodo;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -20,6 +22,9 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 
 public class MainActivity extends AppCompatActivity {
+    public static final String KEY_ITEM_TEXT = "item_text";
+    public static final String KEY_ITEM_POSITION = "item_position";
+    public static final int EDIT_TEXT_CODE = 20;
 
     List<String> todos;
     EditText todoInput;
@@ -38,6 +43,16 @@ public class MainActivity extends AppCompatActivity {
 
         loadItems();
 
+        ItemAdapter.OnClickListener clickListener = new ItemAdapter.OnClickListener() {
+            @Override
+            public void onItemClicked(int position) {
+                Log.d("Main Activity", "Single click at pos " + position);
+                Intent intent = new Intent(MainActivity.this, EditActivity.class);
+                intent.putExtra(KEY_ITEM_TEXT, todos.get(position));
+                intent.putExtra(KEY_ITEM_POSITION, position);
+                startActivityForResult(intent, EDIT_TEXT_CODE);
+            }
+        };
         ItemAdapter.OnLongClickListener longClickListener = new ItemAdapter.OnLongClickListener() {
             @Override
             public void onItemLongClicked(int position) {
@@ -48,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
             };
         };
 
-        itemAdapter = new ItemAdapter(todos, longClickListener);
+        itemAdapter = new ItemAdapter(todos, clickListener, longClickListener);
         todoListView.setAdapter(itemAdapter);
         todoListView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -58,10 +73,27 @@ public class MainActivity extends AppCompatActivity {
                 String todoItem = todoInput.getText().toString();
                 todos.add(todoItem);
                 todoInput.setText("");
+                itemAdapter.notifyItemInserted(todos.size() - 1);
                 Toast.makeText(getApplicationContext(), "Item was added", Toast.LENGTH_SHORT).show();
                 saveItems();
             }
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK && requestCode == EDIT_TEXT_CODE) {
+            String itemText = data.getStringExtra(KEY_ITEM_TEXT);
+            int position = data.getExtras().getInt(KEY_ITEM_POSITION);
+
+            todos.set(position, itemText);
+            itemAdapter.notifyItemChanged(position);
+            saveItems();
+            Toast.makeText(getApplicationContext(), "Item successfully edited", Toast.LENGTH_SHORT).show();
+        } else {
+            Log.d("MainActivity", "Unknown call to onActivityResult");
+        }
     }
 
     private File getDataFile() {
